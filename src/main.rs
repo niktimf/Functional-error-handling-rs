@@ -1,53 +1,32 @@
 fn parse_int(input: &str) -> ParseIntResult {
-    let chars: Vec<char> = input.chars().collect();
-
-    if chars.is_empty() {
-        return ParseIntResult::Failure {
-            position: 0,
-            character: '\0',
-        };
-    }
-
-    let (sign, start_pos) = match chars[0] {
-        '-' => (-1, 1),
-        _ => (1, 0),
-    };
-
-    if start_pos == 1 && chars.get(1) == Some(&'-') {
+    if input.starts_with("--") {
         return ParseIntResult::Failure {
             position: 1,
             character: '-',
         };
     }
+    match input.parse::<i32>() {
+        Ok(num) => ParseIntResult::Success(num),
+        Err(_) => {
+            let pos = input
+                .chars()
+                .enumerate()
+                .find(|(i, c)| {
+                    if *i == 0 && *c == '-' {
+                        false
+                    } else {
+                        !c.is_ascii_digit()
+                    }
+                })
+                .map(|(i, c)| (i, c))
+                .unwrap_or((0, '0'));
 
-    let parsing_result =
-        chars[start_pos..]
-            .iter()
-            .enumerate()
-            .try_fold((0_i64, false), |(acc, _), (i, &ch)| {
-                ch.to_digit(10)
-                    .map(|d| {
-                        acc.checked_mul(10)
-                            .and_then(|n| n.checked_add(d as i64))
-                            .map(|n| (n, true))
-                            .unwrap_or((0, false))
-                    })
-                    .filter(|&(_, success)| success)
-                    .ok_or((i + start_pos, ch))
-            });
-
-    parsing_result
-        .and_then(|(num, _)| {
-            num.checked_mul(sign)
-                .filter(|&n| n >= i64::from(i32::MIN) && n <= i64::from(i32::MAX))
-                .map(|n| n as i32)
-                .ok_or((0, '0'))
-        })
-        .map(ParseIntResult::Success)
-        .unwrap_or_else(|(pos, c)| ParseIntResult::Failure {
-            position: pos,
-            character: c,
-        })
+            ParseIntResult::Failure {
+                position: pos.0,
+                character: pos.1,
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
